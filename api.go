@@ -12,7 +12,7 @@ type IFinamClient interface {
 	// список инструментов (Максимальное Количество запросов в минуту = 1 )
 	GetSecurity(ctx context.Context, board string, seccode string) ( Securities, error)
 	// получить свечи
-	GetCandles(ctx context.Context, board, symbol string, timeFrame TimeFrame, from, to string) ([]Candle, error)
+	GetCandles(ctx context.Context, board, symbol string, timeFrame TimeFrame, from, to string, count int) ([]Candle, error)
 
 	// TODO
 	// получить список заявок

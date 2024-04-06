@@ -6,21 +6,24 @@ import (
   "net/url"
   "path"
   "fmt"
+  "strconv"
 )
 
-// Для получения списка свечей необходимо выполнить GET запрос на /api/v1/day-candles/ или /api/v1/intraday-candles.
 // Необходимо указать securityCode, securityBoard и timeFrame.
 // https://finamweb.github.io/trade-api-docs/rest-api/candles   
 
-//https://trade-api.finam.ru/public/api/v1/day-candles?SecurityBoard=TQBR&SecurityCode=SBER&TimeFrame=D1&Interval.From=2023-04-01&Interval.To=2024-03-31
-
-
-func (client *Client) GetCandles(ctx context.Context, 
-                                board string, 
-                                symbol string,
-                                timeFrame TimeFrame,
+// Запрос дневных/недельных свечей
+// Максимальный интервал: 365 дней
+// Максимальное кол-во запросов в минуту: 120
+// Дата начала (окончания) в формате yyyy-MM-dd в часовом поясе UTC
+// Запрос внутридневных свечей
+// Максимальный интервал: 30 дней
+// Максимальное кол-во запросов в минуту: 120
+// Дата начала (окончания) в формате yyyy-MM-ddTHH:mm:ssZ в часовом поясе UTC
+func (client *Client) GetCandles(ctx context.Context, board string, symbol string, timeFrame TimeFrame,
                                 from string,
                                 to string,
+                                count int,
 
 ) ( []Candle, error){
   endPoint := "public/api/v1/day-candles"
@@ -52,9 +55,17 @@ func (client *Client) GetCandles(ctx context.Context,
   q.Set("SecurityBoard", board)
   q.Set("SecurityCode", symbol)
   q.Set("TimeFrame", timeFrame.String())
-  q.Set("Interval.From", from)
-  if to != ""{
+
+  // TODO проверка дат
+
+  if from !=""{
+    q.Set("Interval.From", from)
+  }
+    if to != ""{
     q.Set("Interval.To", to)
+  }
+  if count != 0{
+    q.Set("Interval.Count", strconv.Itoa(count))
   }
   
   // добавляем к URL параметры

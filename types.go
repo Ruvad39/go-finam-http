@@ -164,6 +164,7 @@ func (k *Candle) GetDateTime() string {
 	}
 	
 	// в часовом поясе UTC. перевести в Moscow ???
+	//time.LoadLocation()
 	time, err := time.Parse(layout, k.Timestamp)
 	if err != nil {
 				slog.Error("GetTime", "err", err.Error())

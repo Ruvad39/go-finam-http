@@ -18,13 +18,21 @@ GetPortfolio(ctx context.Context, opts ...Option) (Portfolio, error)
 GetSecurity(ctx context.Context, board string, seccode string) ( Securities, error)
 // получить свечи
 GetCandles(ctx context.Context, board, symbol string, timeFrame TimeFrame, from, to string) ([]Candle, error)
+
+// TODO
+// получить список заявок
+// создать новую заявку
+// отменить заявку
+// получить список стоп-заявок
+// создать новую стоп-заявку
+// отменить стоп-заявку
 ```
 ## Примеры
 
 ### Пример получения данных о портфеле
 
 ```go
-func main(){
+
     ctx := context.Background()
     // создание клиента
     token := "token"
@@ -44,7 +52,6 @@ func main(){
     slog.Info("main.AccessTokens", "ok", ok)
 
     // запрос состояния счета
-    // IncludePositions по умолчанию = true
     portfolio, err := client.GetPortfolio(ctx,
                             finam.WithIncludePositions(true), 
                             finam.WithIncludeCurrencies(true), 
@@ -61,14 +68,6 @@ func main(){
     // список позиций
     for _, pos := range portfolio.Positions {
         slog.Info("position", slog.Any("pos",pos))
-        // slog.Info("position",
-        //  "SecurityCode",     pos.SecurityCode,
-        //  "Market",           pos.Market,
-        //  "Balance",          pos.Balance,  
-        //  "CurrentPrice",     pos.CurrentPrice,
-        //  "AveragePrice",     pos.AveragePrice,
-        //  "UnrealizedProfit", pos.UnrealizedProfit,
-        // )
     }
 
     // список валют счета
@@ -77,13 +76,11 @@ func main(){
     // список денег
     slog.Info("portfolio.Money" , slog.Any("Money", portfolio.Money))
 
-}
 ```
 
 ### Пример получения свечей
 
 ```go
-func main(){
     ctx := context.Background()
 
     // Level: slog.LevelDebug,
@@ -127,7 +124,6 @@ func main(){
             "candles",   candle.String(),
         )
     }
-}
 ```
 
 ### другие примеры смотрите [тут](/example)
