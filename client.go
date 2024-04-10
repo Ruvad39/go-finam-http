@@ -1,14 +1,15 @@
 package finam
 
 import (
-    "fmt"
-    "context"
-    "os"
-    "io/ioutil"
-    "log/slog"
-    "net/http"
-    //"net/url"
-    
+	"bytes"
+	"context"
+	"encoding/json"
+	//"fmt"
+	"io/ioutil"
+	"log/slog"
+	"net/http"
+	"os"
+	//"net/url"
 )
 
 const (
@@ -53,11 +54,23 @@ func NewClient(token, clientId string, opts ...ClientOption) (*Client, error) {
 // выполним запрос  (вернем http.Response)
 func (client *Client) RequestHttp(ctx context.Context, httpMethod string, url string, body interface{})(*http.Response, error){
 
-    req, err := http.NewRequestWithContext(ctx, httpMethod, url, nil) 
+    //client.Logger.Debug("RequestHttp", slog.Any("body", body))
+    buf := new(bytes.Buffer)
+    if body != nil {
+        json.NewEncoder(buf).Encode(body)
+        client.Logger.Debug("RequestHttp", slog.Any("buf", buf))
+    } 
+    
+    req, err := http.NewRequestWithContext(ctx, httpMethod, url, buf)         
     if err != nil {
         client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
         return nil, err
-    }
+    }     
+
+    // if err != nil {
+    //     client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
+    //     return nil, err
+    // }
 
     // добавляем заголовки
     if client.UserAgent != "" {
@@ -73,9 +86,10 @@ func (client *Client) RequestHttp(ctx context.Context, httpMethod string, url st
     resp, err := client.httpClient.Do(req)
     if err != nil {
         client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
+        //client.Logger.Debug("RequestHttp", slog.Any("resp", resp))
         return nil, err
     }
-
+    
     client.Logger.Debug("RequestHttp", "httpMethod", httpMethod, "url", url, "StatusCode", resp.StatusCode)
 
 
@@ -93,8 +107,8 @@ func (client *Client) GetHttp(ctx context.Context, httpMethod string, url string
     }
 
     if resp.StatusCode != http.StatusOK {
-        //client.Logger.Error("RequestHttp", slog.Any("resp",resp))
-        return nil, fmt.Errorf(resp.Status)
+        client.Logger.Error("RequestHttp", slog.Any("resp",resp))
+        //return nil, fmt.Errorf(resp.Status)
 
     //     return nil, fmt.Errorf("responce StatusCode %s", resp.StatusCode)
     }

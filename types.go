@@ -249,3 +249,126 @@ func initMoscow() *time.Location {
     }
     return loc
 }
+
+
+// условие по времени действия заявки
+// TillEndSession - заявка действует до конца сессии;
+// TillCancelled - заявка действует, пока не будет отменена;
+// ExactTime - заявка действует до указанного времени. Параметр time должен быть задан.
+type OrderValidBefore struct{
+	Type string 	`json:"type"`
+	Time *string     `json:"time,omitempty"` // может быть null
+}
+	
+
+// тип BuySell
+// Определяет тип операции: покупка или продажа. Принимает следующие значения:
+// Buy - покупка,
+// Sell- продажа.
+type SideType string
+
+const (
+	SideBuy  = SideType("Buy")
+	SideSell = SideType("Sell")
+)
+func (side SideType) String() string {
+	return string(side)
+}
+
+// Тип OrderStatus Статус заявки. Принимает следующие значения:
+// None - заявка принята сервером TRANSAQ, и заявке присвоен transactionId;
+// Active - заявка принята биржей, и заявке присвоен orderNo;
+// Matched - заявка полностью исполнилась (выполнилась);
+// Cancelled - заявка была отменена (снята) пользователем или биржей.
+type OrderStatus string
+
+const (
+	OrderStatusNone  = OrderStatus("None")
+	OrderStatusActive = OrderStatus("Active")
+	OrderStatusMatched = OrderStatus("Matched")
+	OrderStatusCancelled = OrderStatus("Cancelled")
+)
+func (status OrderStatus) String() string {
+	return string(status)
+}
+
+
+// Свойства выставления заявок. 
+// Тип условия определяет значение поля type, которое принимает следующие значения:
+// Bid - лучшая цена покупки;
+// BidOrLast- лучшая цена покупки или сделка по заданной цене и выше;
+// Ask - лучшая цена продажи;
+// AskOrLast - лучшая цена продажи или сделка по заданной цене и ниже;
+// Time - время выставления заявки на Биржу (параметр time должен быть установлен);
+// CovDown - обеспеченность ниже заданной;
+// CovUp - обеспеченность выше заданной;
+// LastUp - сделка на рынке по заданной цене или выше;
+// LastDown- сделка на рынке по заданной цене или ниже.
+type OrderCondition struct{
+	Type  string  `json:"type"`
+	//Price float64 `json:"price,omitempty"`   
+	Price float64 `json:"price"`   
+	Time  string  `json:"time,omitempty"` 
+}
+
+// property - свойства исполнения частично исполненных заявок. Принимает следующие значения:
+// PutInQueue    - неисполненная часть заявки помещается в очередь заявок биржи;
+// CancelBalance - неисполненная часть заявки снимается с торгов;
+// ImmOrCancel   - сделки совершаются только в том случае, если заявка может быть удовлетворена полностью и сразу при выставлении.
+
+// order
+type Order struct {
+ 	OrderNo       int64 	`json:"orderNo"`      //  уникальный идентификатор заявки на бирже. Задается после того, как заявка будет принята биржей (см. поле status); 
+ 	TransactionId int64 	`json:"transactionId"` // внутренний идентификатор заявки в системе TRANSAQ (для чужой заявки значение всегда равно 0);
+ 	ClientId      string 	`json:"clientId"`     //  торговый код клиента;
+ 	SecurityCode  string 	`json:"securityCode"` //код инструмента;
+ 	SecurityBoard string 	`json:"securityBoard"` //основной режим торгов инструмента;
+	Market        string 	`json:"market"`                // рынок инструмента. Тип Market.	
+ 	Status        string 	`json:"status"`       // текущий статус заявки. Тип OrderStatus;
+ 	BuySell       string 	`json:"buySell"`      //  тип BuySell;
+ 	CreatedAt     string 	`json:"createdAt"`    // время регистрации заявки на бирже (UTC);
+	Price         float64 	`json:"price"`        // цена исполнения условной заявки. Для рыночной заявки значение всегда равно 0;
+	Quantity      int 	`json:"quantity"` //  объем заявки в лотах;
+	Balance       int 	`json:"balance"` //  неисполненный остаток, в лотах. Изначально равен quantity, но по мере исполнения заявки (совершения сделок) будет уменьшаться на объем сделки. Значение 0 будет соответствовать полностью исполненной заявке (см. поле status);
+	Message       string 	`json:"message"` //  содержит сообщение об ошибке, возникшей при обработке заявки. Заявка может быть отклонена по разным причинам сервером TRANSAQ или биржей с выставлением поля status;
+	Currency      string 	`json:"currency"`
+	AcceptedAt    string 	`json:"acceptedAt"`    // время регистрации заявки на сервере TRANSAQ (UTC);
+	Condition     *OrderCondition   `json:"condition"`  // может быть null/ свойства выставления заявок. Тип OrderCondition;
+	ValidBefore   OrderValidBefore `json:"validBefore"` // условие по времени действия заявки. Тип OrderValidBefore;
+
+}
+
+
+
+
+
+// New Order Request.
+// Запрос на создание заявки.
+type NewOrderRequest struct {
+	// Trade Account ID. Идентификатор торгового счёта.
+	ClientId string `json:"clientId,omitempty"`
+	// Trading Board. Режим торгов.
+	SecurityBoard string `json:"securityBoard,omitempty"`
+	// Security Code. Тикер инструмента.
+	SecurityCode string `"json:"securityCode,omitempty"`
+	// Направление сделки.
+	//BuySell SideType `json:"buySell,omitempty"`
+	BuySell string `json:"buySell,omitempty"`
+	// Количество лотов инструмента для заявки.
+	Quantity int32 `json:"quantity,omitempty"`
+	// Использовать кредит. Недоступно для срочного рынка.
+	UseCredit bool `json:"useCredit,omitempty"`
+	// Order price. Use "null" to place Market Order.
+	// Цена заявки. Используйте "null", чтобы выставить рыночную заявку.
+	//Price *float64 `json:"price,omitempty"`
+	Price *float64 `json:"price"`
+	// Unfilled order execution property.
+	// Свойства исполнения частично исполненных заявок.
+	//Property OrderProperty `json:"property,omitempty"`
+	Property string `json:"property,omitempty"`
+	// Свойства выставления заявок.
+	Condition *OrderCondition `json:"condition,omitempty"`
+	// Order lifetime condition.
+	// Условие по времени действия заявки.
+	ValidBefore *OrderValidBefore `protobuf:"json:"validBefore,omitempty"`
+}

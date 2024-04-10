@@ -56,7 +56,9 @@ func (client *Client) GetCandles(ctx context.Context, board string, symbol strin
   q.Set("SecurityCode", symbol)
   q.Set("TimeFrame", timeFrame.String())
 
-  // TODO проверка дат
+  // TODO проверка дат from to
+  // если дневная свеча: формат должен быть yyyy-MM-dd
+  // если внутредневная: формат должен быть yyyy-MM-ddTHH:mm:ssZ в часовом поясе UTC
 
   if from !=""{
     q.Set("Interval.From", from)

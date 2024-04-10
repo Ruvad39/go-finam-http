@@ -5,6 +5,7 @@ import (
     "log/slog"
     "os"
     "github.com/Ruvad39/go-finam-http"
+    "github.com/joho/godotenv"
 )
 
 func main(){
@@ -15,9 +16,17 @@ func main(){
 		})		
 	logger_ := slog.New(handler)
 
+    // загрузим значения для переменных окружения .env 
+    if err := godotenv.Load(); err != nil {
+        slog.Error("No .env file found")
+    }
+    
 	// создание клиента
-	token := ""
-	clientId := ""
+	//token := ""
+	//clientId := ""
+	// значения из переменных окружения
+	token, _    := os.LookupEnv("FINAM_TOKEN")
+	clientId, _ := os.LookupEnv("FINAM_CLIENTID")
 
 	client, err := finam.NewClient(token, clientId, finam.WithLogger(logger_))
 	if err != nil {

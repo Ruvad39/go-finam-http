@@ -15,6 +15,10 @@ type Options struct {
     IncludeMoney         bool // запросить информацию по денежным позициям портфеля;
     IncludePositions     bool // запросить информацию по позициям портфеля;
     IncludeMaxBuySell    bool // запросить информацию о максимальном доступном объеме на покупку/продажу.
+
+    IncludeMatched       bool // вернуть исполненные заявки;
+    IncludeCanceled      bool // вернуть отмененные заявки;
+    IncludeActive        bool // вернуть активные заявки.
 }
 
 func NewOptions() (*Options) {
@@ -47,5 +51,26 @@ func WithIncludeMoney(param bool) Option {
 func WithIncludeMaxBuySell(param bool) Option {
     return func(opts *Options) {
         opts.IncludeMaxBuySell = param
+    }
+}
+
+// (true)  вернуть исполненные заявки;
+func WithIncludeMatched(param bool) Option {
+    return func(opts *Options) {
+        opts.IncludeMatched = param
+    }
+}
+
+// (true) вернуть отмененные заявки;
+func WithIncludeCanceled(param bool) Option {
+    return func(opts *Options) {
+        opts.IncludeCanceled = param
+    }
+}
+
+// (true) IncludeActive  вернуть активные заявки.
+func WithIncludeActive(param bool) Option {
+    return func(opts *Options) {
+        opts.IncludeActive = param
     }
 }
