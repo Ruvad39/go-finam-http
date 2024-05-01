@@ -6,7 +6,7 @@
 
 
 ```bash
-go get github.com/Ruvad39/go-finam
+go get github.com/Ruvad39/go-finam-http
 ```
 
 ## api реализован на текущий момент:
@@ -25,14 +25,16 @@ GetOrders(ctx context.Context, opts ...Option) ( []Order, error)
 DeleteOrder(ctx context.Context, transactionId int64) error
 // создать новую заявку
 SendOrder(ctx context.Context, order NewOrderRequest) (int64, error)
+
+// TODO
 // купить по рынку
-BuyMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
+//BuyMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
 // выставить лимитную заявку на покупку
-BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
+//BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
 // продать по рынку
-SellMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
+//SellMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
 // выставить лимитную заявку на продажу
-SellLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
+//SellLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
 
 // TODO
 // стоп-завки
