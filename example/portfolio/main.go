@@ -1,78 +1,58 @@
 package main
 
 import (
-    "context"
-    "log/slog"
-    "os"
-    "github.com/Ruvad39/go-finam-http"
-    "github.com/joho/godotenv"
+	"context"
+	"github.com/Ruvad39/go-finam-http"
+	"log/slog"
 )
 
-func main(){
+func main() {
 	ctx := context.Background()
-	// создадим логер (для отладки)
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})		
-	logger_ := slog.New(handler)
 
-    // загрузим значения для переменных окружения .env 
-    if err := godotenv.Load(); err != nil {
-        slog.Error("No .env file found")
-    }
-    
 	// создание клиента
-	//token := ""
-	//clientId := ""
-	// значения из переменных окружения
-	token, _    := os.LookupEnv("FINAM_TOKEN")
-	clientId, _ := os.LookupEnv("FINAM_CLIENTID")
+	token := ""
+	clientId := ""
 
-	client, err := finam.NewClient(token, clientId, finam.WithLogger(logger_))
-	if err != nil {
-		slog.Error("main", slog.Any("ошибка создания finam.client", err))
-	}
+	client := finam.NewClient(token, clientId)
+	//client.Debug = true
 
 	// проверка токена
 	ok, err := client.AccessTokens(ctx)
-	if err != nil{
+	if err != nil {
 		slog.Info("main.AccessTokens", "ошибка проверки токена:", err.Error())
-		return 
+		return
 	}
 	slog.Info("main.AccessTokens", "ok", ok)
 
 	// запрос состояния счета
-	// IncludePositions по умолчанию = true
+	// первый способ: создание service
+	//portfolio, err := client.NewGetPortfolioService().
+	//	IncludePositions(true).
+	//	IncludeCurrencies(true).
+	//	IncludeMoney(true).
+	//	IncludeMaxBuySell(true).Do(ctx)
+
+	// второй способ: вызов метода
 	portfolio, err := client.GetPortfolio(ctx,
-							finam.WithIncludePositions(true), 
-							finam.WithIncludeCurrencies(true), 
-							finam.WithIncludeMoney(true),
-							finam.WithIncludeMaxBuySell(true),
-						)
-	if err != nil{
+		finam.WithIncludePositions(true),
+		finam.WithIncludeCurrencies(true),
+		finam.WithIncludeMoney(true),
+		finam.WithIncludeMaxBuySell(true))
+
+	if err != nil {
 		slog.Info("main.GetPortfolio", "err", err.Error())
+		return
 	}
 
 	// баланс счета
 	slog.Info("Balance", "Equity", portfolio.Equity, "Balance", portfolio.Balance)
-
 	// список позиций
 	for _, pos := range portfolio.Positions {
-		slog.Info("position", slog.Any("pos",pos))
-		// slog.Info("position",
-		// 	"SecurityCode",     pos.SecurityCode,
-		// 	"Market",           pos.Market,
-		// 	"Balance",          pos.Balance,  
-		// 	"CurrentPrice",     pos.CurrentPrice,
-		// 	"AveragePrice",     pos.AveragePrice,
-		// 	"UnrealizedProfit", pos.UnrealizedProfit,
-		// )
+		slog.Info("position", slog.Any("pos", pos))
 	}
-
 	// список валют счета
-	slog.Info("portfolio.Currencies" , slog.Any("Currencies", portfolio.Currencies))
-
+	slog.Info("portfolio.Currencies", slog.Any("Currencies", portfolio.Currencies))
 	// список денег
-	slog.Info("portfolio.Money" , slog.Any("Money", portfolio.Money))
+	slog.Info("portfolio.Money", slog.Any("Money", portfolio.Money))
 
 }

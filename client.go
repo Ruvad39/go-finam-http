@@ -1,153 +1,190 @@
+/*
+	идея логики клиента принадлежит https://github.com/adshao
+	и его проекту https://github.com/adshao/go-binance
+*/
+
 package finam
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	//"fmt"
-	"io/ioutil"
-	"log/slog"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
-	//"net/url"
 )
 
 const (
-    libraryName    = "FINAM API REST GO"
-    libraryVersion = "0.0.1"
-    baseURL = "https://trade-api.finam.ru/"
+	libraryName    = "FINAM-REST API GO"
+	libraryVersion = "0.0.2"
+	baseAPIMainURL = "https://trade-api.finam.ru/"
+	headerKey      = "X-Api-Key"
 )
 
+// UseDevelop использовать тестовый или боевой сервер
+//var UseDevelop = false
 
-type HTTPClient interface {
-    Do(req *http.Request) (*http.Response, error)
+// getAPIEndpoint return the base endpoint of the Rest API according the UseDevelop flag
+func getAPIEndpoint() string {
+	//if UseDevelop {
+	//	return baseAPITestnetURL
+	//}
+	return baseAPIMainURL
 }
 
+// NewClient создание нового клиента
+func NewClient(token, clientId string) *Client {
+	return &Client{
+		token:      token,
+		clientId:   clientId,
+		BaseURL:    getAPIEndpoint(),
+		UserAgent:  "Finam/golang",
+		HTTPClient: http.DefaultClient,
+		Logger:     log.New(os.Stderr, "go-finam ", log.LstdFlags),
+	}
+}
+
+type doFunc func(req *http.Request) (*http.Response, error)
+
+// Client define API client
 type Client struct {
-    token       string 
-    clientId    string 
-
-    UserAgent   string    // если проставлен, пропишем User agent в http запросе
-    httpClient  HTTPClient //*http.Client
-    Logger      *slog.Logger
-
+	token      string
+	clientId   string
+	BaseURL    string
+	UserAgent  string
+	HTTPClient *http.Client
+	Debug      bool
+	Logger     *log.Logger
+	TimeOffset int64
+	do         doFunc
 }
 
-
-// создание клиента
-func NewClient(token, clientId string, opts ...ClientOption) (*Client, error) {
-    c := &Client{
-        token:       token,
-        clientId:    clientId,
-        httpClient:  http.DefaultClient,
-        Logger :     slog.New(slog.NewTextHandler(os.Stdout, nil)), //io.Discard
-    }
-    // обрабратаем входящие параметры
-    for _, opt := range opts {
-        opt(c)
-    }
-
-    return c, nil
+func (c *Client) debug(format string, v ...interface{}) {
+	if c.Debug {
+		c.Logger.Printf(format, v...)
+	}
 }
 
+func (c *Client) parseRequest(r *request, opts ...RequestOption) (err error) {
+	// set request options from user
+	for _, opt := range opts {
+		opt(r)
+	}
+	err = r.validate()
+	if err != nil {
+		return err
+	}
 
-// выполним запрос  (вернем http.Response)
-func (client *Client) RequestHttp(ctx context.Context, httpMethod string, url string, body interface{})(*http.Response, error){
+	fullURL := fmt.Sprintf("%s%s", c.BaseURL, r.endpoint)
 
-    //client.Logger.Debug("RequestHttp", slog.Any("body", body))
-    buf := new(bytes.Buffer)
-    if body != nil {
-        json.NewEncoder(buf).Encode(body)
-        client.Logger.Debug("RequestHttp", slog.Any("buf", buf))
-    } 
-    
-    req, err := http.NewRequestWithContext(ctx, httpMethod, url, buf)         
-    if err != nil {
-        client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
-        return nil, err
-    }     
+	queryString := r.query.Encode()
+	//body := &bytes.Buffer{}
+	header := http.Header{}
+	if r.header != nil {
+		header = r.header.Clone()
+	}
+	if r.body != nil {
+		header.Set("Content-Type", "application/json")
+		c.debug("r.body: %s", r.body)
+		//body = r.body
+	}
 
-    // if err != nil {
-    //     client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
-    //     return nil, err
-    // }
+	bodyString := r.form.Encode()
+	if bodyString != "" {
+		header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.body = bytes.NewBufferString(bodyString)
+		//body = bytes.NewBufferString(bodyString)
+		c.debug("bodyString: %s", bodyString)
+	}
+	//headerKey := "X-Api-Key"
+	if c.token != "" {
+		//header.Set("X-Api-Key", c.token)
+		header.Set(headerKey, c.token)
+	}
 
-    // добавляем заголовки
-    if client.UserAgent != "" {
-        req.Header.Set("User-Agent", client.UserAgent)
-    }    
-    if body != nil {
-        req.Header.Set("Content-Type", "application/json")
-    }
-    if client.token != ""{
-        req.Header.Add("X-Api-Key", client.token)
-    }
-    
-    resp, err := client.httpClient.Do(req)
-    if err != nil {
-        client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
-        //client.Logger.Debug("RequestHttp", slog.Any("resp", resp))
-        return nil, err
-    }
-    
-    client.Logger.Debug("RequestHttp", "httpMethod", httpMethod, "url", url, "StatusCode", resp.StatusCode)
+	if queryString != "" {
+		fullURL = fmt.Sprintf("%s?%s", fullURL, queryString)
+	}
+	//c.debug("full url: %s, body: %s", fullURL, bodyString)
+	c.debug("full url: %s", fullURL)
 
-
-    return resp, err
+	r.fullURL = fullURL
+	r.header = header
+	//r.body = body
+	return nil
 }
 
-// выполним запрос  (вернем []byte)
-func (client *Client) GetHttp(ctx context.Context, httpMethod string, url string, body interface{})([]byte, error){
+func (c *Client) callAPI(ctx context.Context, r *request, opts ...RequestOption) (data []byte, err error) {
+	err = c.parseRequest(r, opts...)
+	if err != nil {
+		return []byte{}, err
+	}
+	req, err := http.NewRequest(r.method, r.fullURL, r.body)
+	if err != nil {
+		return []byte{}, err
+	}
+	req = req.WithContext(ctx)
+	req.Header = r.header
+	c.debug("request: %#v", req)
+	f := c.do
+	if f == nil {
+		f = c.HTTPClient.Do
+	}
+	res, err := f(req)
+	if err != nil {
+		return []byte{}, err
+	}
+	data, err = io.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer func() {
+		cerr := res.Body.Close()
+		// Only overwrite the retured error if the original error was nil and an
+		// error occurred while closing the body.
+		if err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+	c.debug("response: %#v", res)
+	c.debug("response body: %s", string(data))
+	c.debug("response status code: %d", res.StatusCode)
 
-    resp, err := client.RequestHttp(ctx, httpMethod, url, body )
-
-    if err != nil {
-        client.Logger.Error("RequestHttp", "httpMethod", httpMethod, "url", url, "err", err.Error())
-        return nil, err
-    }
-
-    if resp.StatusCode != http.StatusOK {
-        client.Logger.Error("RequestHttp", slog.Any("resp",resp))
-        //return nil, fmt.Errorf(resp.Status)
-
-    //     return nil, fmt.Errorf("responce StatusCode %s", resp.StatusCode)
-    }
-
-    defer resp.Body.Close()
-    return ioutil.ReadAll(resp.Body)
-
+	// из финама приходит другая структура ошибки
+	if res.StatusCode >= http.StatusBadRequest {
+		apiErr := new(APIError)
+		e := json.Unmarshal(data, apiErr)
+		if e != nil {
+			c.debug("failed to unmarshal json: %s", e)
+		}
+		return nil, apiErr
+	}
+	return data, nil
 }
 
-
-// вернем текущую версию
-func (c *Client) Version() string{
-    return libraryVersion
+// структура ошибки
+type ResponseError struct {
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
-
-
-
-type ClientOption func(c *Client)
-
-// WithLogger задает логгер 
-// По умолчанию логирование включено на ошибки
-func WithLogger(logger *slog.Logger) ClientOption {
-    return func(opts *Client) {
-        opts.Logger = logger
-    }
+type APIError struct {
+	ResponseError ResponseError `json:"error"`
 }
 
-func WithClientId(id string) ClientOption {
-    return func(opts *Client) {
-        opts.clientId = id
-    }
+func (e APIError) Error() string {
+	return fmt.Sprintf("<APIError> code=%s, msg=%s, data=%s", e.ResponseError.Code, e.ResponseError.Message, e.ResponseError.Data)
 }
 
-// установим свой HttpClient
-// по умолчанию стоит http.DefaultClient
-func WithGttpClient(client HTTPClient) ClientOption {
-    return func(opts *Client) {
-        opts.httpClient = client
-    }
+func IsAPIError(e error) bool {
+	_, ok := e.(*APIError)
+	return ok
 }
 
+// (debug) вернем текущую версию
+func (c *Client) Version() string {
+	return libraryName + " v." + libraryVersion
+}

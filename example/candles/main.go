@@ -1,85 +1,75 @@
 package main
 
 import (
-    "context"
-    "log/slog"
-    "os"
-    "time"
+	"context"
+	"log/slog"
+	"time"
 
-    "github.com/Ruvad39/go-finam-http"
+	"github.com/Ruvad39/go-finam-http"
 )
 
-func main(){
+func main() {
 	ctx := context.Background()
-
-	// Level: slog.LevelDebug,
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})		
-	logger_ := slog.New(handler)
-
 	// создание клиента
 	token := ""
 	clientId := ""
 
-	client, err := finam.NewClient(token, clientId, finam.WithLogger(logger_))
+	client := finam.NewClient(token, clientId)
+	client.Debug = false
 
-	if err != nil {
-		slog.Error("main", slog.Any("ошибка создания finam.client", err))
-	}
-	
 	// запрос свечей
-	board := "TQBR" // FUT TQBR
+	board := "TQBR"  // FUT TQBR
 	symbol := "SBER" // "SiM4"
 
-	// дневная. за период
-	// TimeFrame_M1 TimeFrame_M5 TimeFrame_M15 TimeFrame_H1 TimeFrame_D1 TimeFrame_W1
+	// дневные свечи
 	tf := finam.TimeFrame_D1
-	from := "2024-04-01" // дата с 
-	to := "2024-04-05"   // дата по
-	count := 0           // кол-во свечей
+	from, _ := time.Parse("2006-01-02", "2024-04-01")
+	to, _ := time.Parse("2006-01-02", "2024-04-30")
 
+	// через создание сервиса
+	//candles, err := client.NewCandlesService(board, symbol, tf).StartTime(from).EndTime(to).Do(ctx)
 
-	candles, err := client.GetCandles(ctx, board, symbol, tf, from, to, count)
-	if err != nil{
-		slog.Info("main.GetCandles", "err", err.Error())
+	// через вызов метода
+	candles, err := client.GetCandles(ctx, board, symbol, tf, finam.WithStartTime(from), finam.WithEndTime(to))
+
+	if err != nil {
+		slog.Info("main.candles", "err", err.Error())
+		return
 	}
-
 	slog.Info("GetCandles", "кол-во", len(candles))
 	//список свечей
 	for n, candle := range candles {
-	 	slog.Info("securities",
-	 		"n_row",     n, 
-	 		"datetime", candle.GetDateTimeToTime().String(),
-			"candles",   candle.String(),
+		slog.Info("candles",
+			"row", n,
+			"datetime", candle.GetDateTimeToTime().String(),
+			"candle", candle.String(),
 		)
 	}
-
-	// внутредневная. последняя свеча м1
-	// дата доожна быть в формате yyyy-MM-ddTHH:mm:ssZ
-	var layout = "2006-01-02T15:04:05Z"
-	// время должны быть в в часовом поясе UTC.  нужно перевести
-	time_now := time.Now().UTC().Format(layout)
-	slog.Info("текущее время", "time_now", time_now)
-
+	//-------------------------------------
+	// внутредневные:
+	// выберем последние 5 минутных свечей
 	tf = finam.TimeFrame_M1
-	from = ""
-	to   = time_now
-	count = 1
+	time_to := time.Now()
+	count := 5
 
-	candles, err = client.GetCandles(ctx, board, symbol, tf, from, to, count)
-	if err != nil{
+	// через создание сервиса
+	candles, err = client.NewCandlesService(board, symbol, tf).EndTime(time_to).Count(count).Do(ctx)
+
+	// через вызов метода
+	//candles, err = client.GetCandles(ctx, board, symbol, tf, finam.WithEndTime(time_to), finam.WithCount(count))
+
+	if err != nil {
 		slog.Info("main.GetCandles", "err", err.Error())
 	}
 
 	slog.Info("GetCandles", "кол-во", len(candles))
 	//список свечей
 	for n, candle := range candles {
-	 	slog.Info("securities",
-	 		"n_row",     n, 
-	 		"datetime", candle.GetDateTimeToTime().String(),
-			"candles",   candle.String(),
+		slog.Info("candle",
+			"row", n,
+			"datetime", candle.GetDateTimeToTime().String(),
+			"candle", candle.String(),
 		)
-	}	
+	}
 
 }

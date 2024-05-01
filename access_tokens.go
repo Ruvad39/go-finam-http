@@ -3,46 +3,39 @@ package finam
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
-	"net/url"
-	"path"
 	"fmt"
+	"net/http"
 )
 
 // https://trade-api.finam.ru/public/api/v1/access-tokens/check
 // проверка токена
-func (client *Client) AccessTokens(ctx context.Context) ( ok bool, err error){
-	endPoint := "public/api/v1/access-tokens/check"
+func (c *Client) AccessTokens(ctx context.Context) (ok bool, err error) {
+	r := &request{
+		method:   http.MethodGet,
+		endpoint: "public/api/v1/access-tokens/check",
+	}
 	ok = false
 
-	url, err := url.Parse(baseURL)
+	data, err := c.callAPI(ctx, r)
 	if err != nil {
 		return false, err
 	}
-	url.Path = path.Join(url.Path, endPoint)
-
-	resp, err := client.GetHttp(ctx,"GET", url.String(), nil)
-	if err != nil {
-		return false, err 
-	}
-	//client.Logger.Debug("AccessTokens", "resp", resp)
 
 	type responseData struct {
-		Error  ResponseError  `json:"error"`
+		Error ResponseError `json:"error"`
 	}
 	var rd responseData
-	if err = json.Unmarshal(resp, &rd); err != nil {
-		client.Logger.Error("AccessTokens Ошибка при разборе ответа JSON", "err", err.Error())
+
+	if err = json.Unmarshal(data, &rd); err != nil {
 		return false, err
 	}
 
 	// если нет ошибки = вернем ok
-	if rd.Error.Code == ""{
+	if rd.Error.Code == "" {
 		return true, nil
 	}
 
-	client.Logger.Debug("AccessTokens", slog.Any("rd", rd))	
-	return false , fmt.Errorf(rd.Error.Message)
-
+	c.debug("AccessTokens: %s ", rd)
+	return false, fmt.Errorf(rd.Error.Message)
 
 }

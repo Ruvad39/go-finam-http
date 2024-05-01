@@ -1,65 +1,95 @@
 package main
 
 import (
-    "context"
-    "log/slog"
-    "os"
-    "github.com/Ruvad39/go-finam-http"
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/Ruvad39/go-finam-http"
+	"log/slog"
+	"os"
 )
 
-func main(){
+func main() {
 
 	ctx := context.Background()
-
-	// Level: slog.LevelDebug,
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})		
-	logger_ := slog.New(handler)
 
 	// создание клиента
 	token := ""
 	clientId := ""
 
-	client, err := finam.NewClient(token, clientId, finam.WithLogger(logger_))
+	client := finam.NewClient(token, clientId)
+	//client.Debug = true
 
+	// запрос списка инструментов
+	// через создание service
+	//Sec, err := client.NewSecurityService().Board("TQBR").Symbol("SBER").Do(ctx)
+
+	// через вызов метода
+	Sec, err := client.GetSecurity(ctx, "TQBR", "")
 	if err != nil {
-		slog.Error("main", slog.Any("ошибка создания finam.client", err))
-	}
-
-	// проверка токена
-	ok, err := client.AccessTokens(ctx)
-	if err != nil{
-		slog.Info("main.AccessTokens", "ошибка проверки токена:", err.Error())
-		return 
-	}
-	slog.Info("main.AccessTokens", "ok", ok)
-
-	
-	// запрос списка инсртументов
-	board := "TQBR" // FUT TQBR
-	symbol := "" // "SiM4"
-	Sec, err := client.GetSecurity(ctx, board, symbol)
-	if err != nil{
 		slog.Info("main.GetSecurity", "err", err.Error())
+		return
 	}
 
-	//slog.Info("GetSecurity", slog.Any("Sec", Sec))
-	//slog.Info("GetSecurity", "кол-во", len(Sec))
+	slog.Info("GetSecurity", "кол-во", len(Sec))
 	// список инструментов
-	 for n, sec := range Sec {
-	 	slog.Info("securities",
-	 		"n_row",     n, 
-			"Code",      sec.Code,
-			"Market",    sec.Market,
-			"board",     sec.Board,  
-			"ShortName", sec.ShortName,
-			"LotSize",   sec.LotSize,
-			"Decimals",  sec.Decimals,
-			"MinStep",   sec.MinStep,
-		)
+	//for n, sec := range Sec {
+	//	slog.Info("securities",
+	//		"row", n,
+	//		"Code", sec.Code,
+	//		"Market", sec.Market,
+	//		"board", sec.Board,
+	//		"ShortName", sec.ShortName,
+	//		"LotSize", sec.LotSize,
+	//		"Decimals", sec.Decimals,
+	//		"MinStep", sec.MinStep,
+	//	)
+	//}
+	// запишу в свой файл
+	type security struct {
+		Symbol    string  `json:"symbol"`     // Код инструмента
+		ShortName string  `json:"short_name"` // Краткое наименование
+		Board     string  `json:"board"`      // Код класса (Board)
+		LotSize   int     `json:"lot_size"`   // Размер лота
+		MinStep   float32 `json:"minStep"`    // минимальный шаг цены;
+		Decimals  int     `json:"decimals"`   // количество знаков в дробной части цены;
 	}
+	Securites_ := make([]security, 0)
 
+	for n, sec := range Sec {
+		if sec.Board == "TQBR" || sec.Board == "FUT" {
+			slog.Info("securities",
+				"row", n,
+				"Code", sec.Code,
+				"Market", sec.Market,
+				"board", sec.Board,
+				"ShortName", sec.ShortName,
+				"LotSize", sec.LotSize,
+				"Decimals", sec.Decimals,
+				"MinStep", sec.MinStep,
+			)
 
+			s := security{}
+			s.Symbol = sec.Code
+			s.Board = sec.Board
+			s.ShortName = sec.ShortName
+			s.LotSize = sec.LotSize
+			s.Decimals = sec.Decimals
+			s.MinStep = sec.MinStep
+
+			Securites_ = append(Securites_, s)
+		}
+	}
+	// запишем в файл
+	jsonData, err := json.Marshal(Securites_)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	err = os.WriteFile("security.json", jsonData, 0644)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
 
 }

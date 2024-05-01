@@ -6,9 +6,10 @@
 
 
 ```bash
-go get github.com/Ruvad39/go-finam-http
+go get github.com/Ruvad39/go-finam
 ```
-## какой api реализован на текущий момент
+
+## api реализован на текущий момент:
 ```go
 // проверка подлинности токена
 AccessTokens(ctx context.Context) (ok bool, err error)
@@ -27,115 +28,134 @@ SendOrder(ctx context.Context, order NewOrderRequest) (int64, error)
 // купить по рынку
 BuyMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
 // выставить лимитную заявку на покупку
-BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)  
+BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
 // продать по рынку
 SellMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
 // выставить лимитную заявку на продажу
-SellLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error) 
+SellLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
 
 // TODO
-// получить список стоп-заявок
-// создать новую стоп-заявку
-// отменить стоп-заявку
+// стоп-завки
+
 ```
+
 ## Примеры
+
+### создание клиента
+```go
+token := "token"
+clientId := "client_id"
+
+client, err := finam.NewClient(token, clientId)
+if err != nil {
+    slog.Error("main", slog.Any("ошибка создания finam.client", err))
+}
+
+ctx := context.Background()
+// проверка токена
+ok, err := client.AccessTokens(ctx)
+if err != nil{
+slog.Info("main.AccessTokens", "ошибка проверки токена:", err.Error())
+return
+}
+slog.Info("main.AccessTokens", "ok", ok)
+````
 
 ### Пример получения данных о портфеле
 
 ```go
+// запрос через создание сервиса
+portfolio, err := client.NewGetPortfolioService().
+    IncludeCurrencies(true).
+    IncludePositions(true).
+    IncludeMoney(true).
+    IncludeMaxBuySell(true).Do(ctx)
 
-    ctx := context.Background()
-    // создание клиента
-    token := "token"
-    clientId := "client_id"
+// запрос через вызов метода
+//portfolio, err := client.GetPortfolio(ctx,
+//    finam.WithIncludePositions(true),
+//    finam.WithIncludeCurrencies(true),
+//    finam.WithIncludeMoney(true),
+//    finam.WithIncludeMaxBuySell(true))
 
-    client, err := finam.NewClient(token, clientId)
-    if err != nil {
-        slog.Error("main", slog.Any("ошибка создания finam.client", err))
-    }
+if err != nil {
+    slog.Info("main.GetPortfolio", "err", err.Error())
+return
+}
 
-    // проверка токена
-    ok, err := client.AccessTokens(ctx)
-    if err != nil{
-        slog.Info("main.AccessTokens", "ошибка проверки токена:", err.Error())
-        return 
-    }
-    slog.Info("main.AccessTokens", "ok", ok)
+// баланс счета
+slog.Info("Balance", "Equity", portfolio.Equity, "Balance", portfolio.Balance)
 
-    // запрос состояния счета
-    portfolio, err := client.GetPortfolio(ctx,
-                            finam.WithIncludePositions(true), 
-                            finam.WithIncludeCurrencies(true), 
-                            finam.WithIncludeMoney(true),
-                            finam.WithIncludeMaxBuySell(true),
-                        )
-    if err != nil{
-        slog.Info("main.GetPortfolio", "err", err.Error())
-    }
-
-    // баланс счета
-    slog.Info("Balance", "Equity", portfolio.Equity, "Balance", portfolio.Balance)
-
-    // список позиций
-    for _, pos := range portfolio.Positions {
-        slog.Info("position", slog.Any("pos",pos))
-    }
-
-    // список валют счета
-    slog.Info("portfolio.Currencies" , slog.Any("Currencies", portfolio.Currencies))
-
-    // список денег
-    slog.Info("portfolio.Money" , slog.Any("Money", portfolio.Money))
+// список позиций
+for _, pos := range portfolio.Positions {
+    slog.Info("position", slog.Any("pos", pos))
+}
+// список валют счета
+slog.Info("portfolio.Currencies", slog.Any("Currencies", portfolio.Currencies))
+// список денег
+slog.Info("portfolio.Money", slog.Any("Money", portfolio.Money))
 
 ```
 
 ### Пример получения свечей
 
 ```go
-    ctx := context.Background()
+board := "TQBR"  // FUT TQBR
+symbol := "SBER" // "SiM4"
+// дневные свечи
+tf := finam.TimeFrame_D1
+from, _ := time.Parse("2006-01-02", "2024-03-01")
+to, _ := time.Parse("2006-01-02", "2024-04-20")
 
-    // Level: slog.LevelDebug,
-    handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-            Level: slog.LevelDebug,
-        })      
-    logger_ := slog.New(handler)
+// через создание сервиса
+// candles, err := client.NewCandlesService(board, symbol, tf).StartTime(from).EndTime(to).Do(ctx)
 
-    // создание клиента
-    token := ""
-    clientId := ""
+// через вызов метода
+candles, err := client.GetCandles(ctx, board, symbol, tf, finam.WithStartTime(from), finam.WithEndTime(to))
+if err != nil {
+    slog.Info("main.candles", "err", err.Error())
+    return
+}
+slog.Info("GetCandles", "кол-во", len(candles))
+//список свечей
+for n, candle := range candles {
+    slog.Info("candles",
+        "row", n,
+        "datetime", candle.GetDateTimeToTime().String(),
+        "candle", candle.String(),
+    )
+}
 
-    client, err := finam.NewClient(token, clientId, finam.WithLogger(logger_))
-    if err != nil {
-        slog.Error("main", slog.Any("ошибка создания finam.client", err))
-    }
-    
-    // запрос свечей
-    board := "TQBR" // FUT TQBR
-    symbol := "SBER" // "SiM4"
-    // TimeFrame_M1 TimeFrame_M5 TimeFrame_M15 TimeFrame_H1 TimeFrame_D1 TimeFrame_W1
-    tf := finam.TimeFrame_D1
-    from := "2024-03-25"
-    to := "2024-04-05"
-    count := 0
+// внутредневные:
+// выберем последние 5 минутных свечей
+tf = finam.TimeFrame_M1
+time_to := time.Now()
+count := 5
 
-    // внутредневная
-    //tf = finam.TimeFrame_M1
-    //from = "2024-03-29T20:06:11Z"
+// через создание сервиса
+// candles, err = client.NewCandlesService(board, symbol, tf).EndTime(time_to).Count(count).Do(ctx)
 
-    candles, err := client.GetCandles(ctx, board, symbol, tf, from, to, count)
-    if err != nil{
-        slog.Info("main.GetCandles", "err", err.Error())
-    }
+// через вызов метода
+candles, err = client.GetCandles(ctx, board, symbol, tf, finam.WithEndTime(time_to), finam.WithCount(count))
 
-    slog.Info("GetCandles", "кол-во", len(candles))
-    //список свечей
-    for n, candle := range candles {
-        slog.Info("securities",
-            "n_row",     n, 
-            "datetime", candle.GetDateTimeToTime().String(),
-            "candles",   candle.String(),
-        )
-    }
+if err != nil {
+    slog.Info("main.GetCandles", "err", err.Error())
+}
+slog.Info("GetCandles", "кол-во", len(candles))
+//список свечей
+for n, candle := range candles {
+    slog.Info("candle",
+        "row", n,
+        "datetime", candle.GetDateTimeToTime().String(),
+        "candle", candle.String(),
+    )
+}
+
 ```
 
-### другие примеры смотрите [тут](/example)
+### Другие примеры смотрите [тут](/example)
+
+---
+Многие идеи по организации структуры клиента принадлежат [adshao](https://github.com/adshao)  
+из его проекта [go-binance](https://github.com/adshao/go-binance)
+за что ему большое спасибо
