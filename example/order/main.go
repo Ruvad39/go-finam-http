@@ -10,7 +10,7 @@ func main() {
 	ctx := context.Background()
 
 	// создание клиента
-	token := "
+	token := ""
 	clientId := ""
 
 	client := finam.NewClient(token, clientId)
@@ -41,7 +41,7 @@ func main() {
 
 	// удалим заявку
 	// нужно послать TransactionId ордера
-	tId := int64(15528)
+	tId := int64(22077388)
 	// через создание service
 	err = client.NewCancelOrderService(tId).Do(ctx)
 	// через вызов метода
@@ -55,32 +55,27 @@ func main() {
 
 	// новая заявка ( board, symbol, sideType, lot, price)
 	// если хотим купить\продать по рынку: ставим price = 0 или ставим цену ниже\выше текущей
-	// newOrder := client.NewOrder("TQBR","SIBN", finam.SideBuy, 1 , 772)
-	// t_id, err := client.SendOrder(ctx, newOrder)
-
-	//tId, err := client.NewCreateOrderService("TQBR", "SBER", finam.SideBuy, 1).Do(ctx)
-	//tId, err = client.NewCreateOrderService("TQBR", "SBER", finam.SideBuy, 1).Price(307.84).Do(ctx)
-	//if err != nil {
-	//	slog.Error("main.SendOrder", "err", err.Error())
-	//	return
-	//}
-	//slog.Info("SendOrder", "TransactionId", tId)
 
 	// купить по рынку
-	//t_id, err := client.BuyMarket(ctx, "TQBR","SBER", 2)
-
-	// выставить лимитную заявку на покупку
-	//t_id, err := client.BuyLimit(ctx, "TQBR","SBER", 1, 306.02)
+	//tId, err = client.BuyMarket(ctx, "FUT", "SiM4", 1)
+	//tId, err = client.NewCreateOrderService("FUT", "SiM4", finam.SideBuy, 1).Do(ctx)
 
 	// продать по рынку
-	//t_id, err := client.SellMarket(ctx, "TQBR","SBER", 3)
+	tId, err = client.SellMarket(ctx, "FUT", "SiM4", 1)
+	//tId, err = client.NewCreateOrderService("FUT", "SiM4", finam.SideSell, 1).Do(ctx)
 
-	// выставить лимитную заявку на продажу
-	//t_id, err := client.SellLimit(ctx, "TQBR","SBER", 2, 306.06)
+	// лимитная заявка на продажу
+	//tId, err = client.SellLimit(ctx, "FUT", "SiM4", 1, 92556)
+	//tId, err = client.NewCreateOrderService("FUT", "SiM4", finam.SideSell, 1).Price(92556).Do(ctx)
 
-	// if err !=nil{
-	// 	slog.Error("main.BuySell", "err", err.Error())
-	// }
-	// slog.Info("BuySell", "TransactionId", t_id)
+	// лимитная заявка на покупку
+	//tId, err = client.BuyLimit(ctx, "FUT", "SiM4", 1, 92584)
+	//tId, err = client.NewCreateOrderService("FUT", "SiM4", finam.SideBuy, 1).Price(92584).Do(ctx)
+
+	if err != nil {
+		slog.Error("main.SendOrder", "err", err.Error())
+		return
+	}
+	slog.Info("SendOrder", "TransactionId", tId)
 
 }

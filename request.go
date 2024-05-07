@@ -70,6 +70,14 @@ func (r *request) setFormParams(m params) *request {
 	return r
 }
 
+func (r *request) setHeader(key, value string) {
+	if r.header == nil {
+		r.header = http.Header{}
+	}
+	r.header.Set(key, value)
+
+}
+
 func (r *request) validate() (err error) {
 	if r.query == nil {
 		r.query = url.Values{}

@@ -18,13 +18,10 @@ import (
 
 const (
 	libraryName    = "FINAM-REST API GO"
-	libraryVersion = "0.0.2"
+	libraryVersion = "0.0.3"
 	baseAPIMainURL = "https://trade-api.finam.ru/"
 	headerKey      = "X-Api-Key"
 )
-
-// UseDevelop использовать тестовый или боевой сервер
-//var UseDevelop = false
 
 // getAPIEndpoint return the base endpoint of the Rest API according the UseDevelop flag
 func getAPIEndpoint() string {
@@ -46,8 +43,6 @@ func NewClient(token, clientId string) *Client {
 	}
 }
 
-type doFunc func(req *http.Request) (*http.Response, error)
-
 // Client define API client
 type Client struct {
 	token      string
@@ -58,7 +53,6 @@ type Client struct {
 	Debug      bool
 	Logger     *log.Logger
 	TimeOffset int64
-	do         doFunc
 }
 
 func (c *Client) debug(format string, v ...interface{}) {
@@ -69,6 +63,7 @@ func (c *Client) debug(format string, v ...interface{}) {
 
 func (c *Client) parseRequest(r *request, opts ...RequestOption) (err error) {
 	// set request options from user
+
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -85,10 +80,11 @@ func (c *Client) parseRequest(r *request, opts ...RequestOption) (err error) {
 	if r.header != nil {
 		header = r.header.Clone()
 	}
+	//c.debug("start header: %s", r.header)
+
 	if r.body != nil {
-		header.Set("Content-Type", "application/json")
+		//header.Set("Content-Type", "application/json")
 		c.debug("r.body: %s", r.body)
-		//body = r.body
 	}
 
 	bodyString := r.form.Encode()
@@ -98,11 +94,11 @@ func (c *Client) parseRequest(r *request, opts ...RequestOption) (err error) {
 		//body = bytes.NewBufferString(bodyString)
 		c.debug("bodyString: %s", bodyString)
 	}
-	//headerKey := "X-Api-Key"
 	if c.token != "" {
 		//header.Set("X-Api-Key", c.token)
 		header.Set(headerKey, c.token)
 	}
+	c.debug("header: %s", header)
 
 	if queryString != "" {
 		fullURL = fmt.Sprintf("%s?%s", fullURL, queryString)
@@ -128,11 +124,14 @@ func (c *Client) callAPI(ctx context.Context, r *request, opts ...RequestOption)
 	req = req.WithContext(ctx)
 	req.Header = r.header
 	c.debug("request: %#v", req)
-	f := c.do
-	if f == nil {
-		f = c.HTTPClient.Do
-	}
-	res, err := f(req)
+	//f := c.do
+	//if f == nil {
+	//	f = c.HTTPClient.Do
+	//}
+	//res, err := f(req)
+
+	res, err := c.HTTPClient.Do(req)
+
 	if err != nil {
 		return []byte{}, err
 	}

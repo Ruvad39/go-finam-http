@@ -60,6 +60,7 @@ func (s *GetOrderService) Do(ctx context.Context) ([]Order, error) {
 	}
 	var rd responseData
 
+	//r.header.Set("Content-Type", "application/json")
 	data, err := s.c.callAPI(ctx, r)
 	if err != nil {
 		return rd.Data.Orders, err
@@ -220,6 +221,11 @@ func (s *CreateOrderService) Do(ctx context.Context) (int64, error) {
 		Data  Data          `json:"data"`
 	}
 	var rd responseData
+
+	// установим заголовок json
+	r.setHeader("Content-Type", "application/json")
+	// или можно послать как параметр
+	//data, err := s.c.callAPI(ctx, r, WithHeader("Content-Type", "application/json", true))
 
 	data, err := s.c.callAPI(ctx, r)
 	if err != nil {

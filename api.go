@@ -26,13 +26,13 @@ type IFinamClient interface {
 	//// создать новую заявку
 	//SendOrder(ctx context.Context, order NewOrderRequest) (int64, error)
 	//// купить по рынку
-	//BuyMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
-	//// выставить лимитную заявку на покупку
-	//BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
-	//// продать по рынку
-	//SellMarket(ctx context.Context, board, symbol string, lot int32 ) (int64 , error)
-	//// выставить лимитную заявку на продажу
-	//SellLimit(ctx context.Context, board, symbol string, lot int32, price float64 ) (int64 , error)
+	BuyMarket(ctx context.Context, symbol, board string, lot int32) (int64, error)
+	// выставить лимитную заявку на покупку
+	BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64) (int64, error)
+	// продать по рынку
+	SellMarket(ctx context.Context, board, symbol string, lot int32) (int64, error)
+	// выставить лимитную заявку на продажу
+	SellLimit(ctx context.Context, board, symbol string, lot int32, price float64) (int64, error)
 
 	// TODO
 	// получить список стоп-заявок
@@ -104,4 +104,28 @@ func (c *Client) GetCandles(ctx context.Context, board, symbol string, timeFrame
 	}
 	return s.Do(ctx)
 
+}
+
+// BuyMarket купить по рынку
+func (c *Client) BuyMarket(ctx context.Context, board, symbol string, lot int32) (int64, error) {
+	s := c.NewCreateOrderService(board, symbol, SideBuy, lot)
+	return s.Do(ctx)
+}
+
+// SellMarket продать по рынку
+func (c *Client) SellMarket(ctx context.Context, board, symbol string, lot int32) (int64, error) {
+	s := c.NewCreateOrderService(board, symbol, SideSell, lot)
+	return s.Do(ctx)
+}
+
+// BuyLimit купить по рынку
+func (c *Client) BuyLimit(ctx context.Context, board, symbol string, lot int32, price float64) (int64, error) {
+	s := c.NewCreateOrderService(board, symbol, SideBuy, lot).Price(price)
+	return s.Do(ctx)
+}
+
+// SellLimit продать по рынку
+func (c *Client) SellLimit(ctx context.Context, board, symbol string, lot int32, price float64) (int64, error) {
+	s := c.NewCreateOrderService(board, symbol, SideSell, lot).Price(price)
+	return s.Do(ctx)
 }
