@@ -45,7 +45,8 @@ func main() {
 	}
 
 	// баланс счета
-	slog.Info("Balance", "Equity", portfolio.Equity, "Balance", portfolio.Balance)
+	//slog.Info("Balance", "Equity", portfolio.Equity, "Balance", portfolio.Balance)
+	slog.Info("GetPortfolio", "portfolio", portfolio)
 	// список позиций
 	for _, pos := range portfolio.Positions {
 		slog.Info("position", slog.Any("pos", pos))

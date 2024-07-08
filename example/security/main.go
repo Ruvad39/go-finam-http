@@ -54,7 +54,8 @@ func main() {
 		MinStep   float32 `json:"minStep"`    // минимальный шаг цены;
 		Decimals  int     `json:"decimals"`   // количество знаков в дробной части цены;
 	}
-	Securites_ := make([]security, 0)
+	len := len(Sec)
+	Securites_ := make([]security, 0, len)
 
 	for n, sec := range Sec {
 		if sec.Board == "TQBR" || sec.Board == "FUT" {
